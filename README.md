@@ -2,6 +2,9 @@
 Final project for SRI 2022 UH
 
 Authors:
-Victor Manuel Cardentey Fundor C511
-Karla Oliver Hernández C511
+
+Victor Manuel Cardentey Fundora C511
+
+Karla Olivera Hernández C511
+
 Amanda González Borrell C511
