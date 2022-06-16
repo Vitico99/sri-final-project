@@ -206,7 +206,7 @@ class FrequencyModel(IRModel):
         """
         Logarithm definition of tf(t,d)
 
-        ltf(t,d) = tf(t,d)
+        ltf(t,d) = log(1 + tf(t,d))
         """
         return np.log10(1 + self.tf[term][doc])
 
