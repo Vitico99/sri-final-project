@@ -179,7 +179,7 @@ class FrequencyModel(IRModel):
 
         ntf(t,d) = tf(t,d)
         """
-        return self.tf[term, doc]
+        return self.tf[term][doc]
 
     def _tf_m(self, term: int, doc: int) -> float:
         """
@@ -238,7 +238,7 @@ class FrequencyModel(IRModel):
 
         Ltf(t,d) = (1 + log(tf(t,d))) / (1 + log(avg_d{tf(t,d)}))
         """
-        return (1 + np.log10(self.tf[term, doc])) / (1 + np.log10(self.doc_avg_tf[doc]))
+        return (1 + np.log10(self.tf[term][doc])) / (1 + np.log10(self.doc_avg_tf[doc]))
 
     #################################################################################################
 
