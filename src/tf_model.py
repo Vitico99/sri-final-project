@@ -1,5 +1,6 @@
 from locale import normalize
 from typing import Iterable, List
+from unittest import result
 import numpy as np
 from collections import Counter
 from utils import Doc, KMaxHeap, Query
@@ -118,7 +119,7 @@ class FrequencyModel(IRModel):
 
             self.tf[term] = {doc: self.tf_function(term, doc) for doc in self.tf[term]}
 
-    def score(self, term: int, doc: int) -> float:
+    def dscore(self, term: int, doc: int) -> float:
         """Compute the weight of a term in a document [w(t,d)]
 
         This method is abstract and is intended to be overriden by a
@@ -131,6 +132,13 @@ class FrequencyModel(IRModel):
         Returns:
             float: w(t,d) value
         """
+        raise NotImplementedError()
+    
+    def qscore(self, query_tf):
+        # qscore is a method intented to build the weighted function of the query
+        raise NotImplementedError()
+
+    def normalize(self, score, doc):
         raise NotImplementedError()
 
     def retrieve(self, query):
@@ -200,7 +208,7 @@ class FrequencyModel(IRModel):
         Args:
             a (float) [defaults: 0.4]: The smoothing coefficient.
         """
-        return 1 + (1 - a) * self.tf[term][doc] / self.doc_max_tf[doc]
+        return a + (1 - a) * self.tf[term][doc] / self.doc_max_tf[doc]
 
     def _tf_l(self, term: int, doc: int) -> float:
         """
@@ -329,15 +337,16 @@ class FrequencyModel(IRModel):
         """
         scores = {}
         heap = KMaxHeap(k)
+    
+        # replacing query words for terms to not repeat this step in the loop
+        query = [self.vocabulary[word] for word in query if word in self.vocabulary]
+        query_tf = Counter(query) 
+        qscore = self.qscore(query_tf)
 
-        for word in query:
-            try:
-                term = self.vocabulary[word]
-            except:
-                continue
+        for term in query_tf:
 
             for doc in self.tf[term]:
-                wt = self.score(term, doc)
+                wt = self.dscore(term, doc) * qscore(term)
                 try:
                     scores[doc] += wt
                 except KeyError:
@@ -362,16 +371,44 @@ class FrequencyModel(IRModel):
 
         # replacing query words for terms to not repeat this step in the loop
         query = [self.vocabulary[word] for word in query if word in self.vocabulary]
-        counter = Counter(query)
-        query = list(counter.keys())
+        query_tf = Counter(query) 
+        qscore = self.qscore(query_tf)
 
         for doc in self.docs:
             score = 0
-            for term in query:
+            for term in query_tf:
                 if doc in self.tf[term]:
-                    score += self.score(term, doc)
+                    score += self.dscore(term, doc) * qscore(term)
             heap.push((score, doc))
 
         return heap.to_list(reverse=True)
+
+    def daat_tretrieve(self, query: Query, t: float) -> list[ScoredDoc]:
+        """Retrieves the k most relevant documents in the corpus for a
+        given query using a Document-At-A-Time computation strategy.
+
+        Args:
+            query (Query): User query
+            k (int): Number of documents to retrieve
+
+        Returns:
+            list[(float, int)]: k most relevant documents for q in format (score, doc)
+        """
+        result = []
+
+        # replacing query words for terms to not repeat this step in the loop
+        query = [self.vocabulary[word] for word in query if word in self.vocabulary]
+        query_tf = Counter(query) 
+        qscore = self.qscore(query_tf)
+
+        for doc in self.docs:
+            score = 0
+            for term in query_tf:
+                if doc in self.tf[term]:
+                    score += self.dscore(term, doc) * qscore(term)
+            if score > t:
+                result.append((score, doc))
+
+        return result
 
     #################################################################################################
