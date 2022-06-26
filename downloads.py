@@ -8,3 +8,6 @@ nltk.download("omw-1.4")
 
 cranfield = ir_datasets.load("cranfield")
 next(cranfield.docs_iter())
+
+vaswani = ir_datasets.load("vaswani")
+next(vaswani.docs_iter())

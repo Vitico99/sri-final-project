@@ -4,18 +4,18 @@ import ir_datasets
 import ir_measures
 
 
-cranfield = ir_datasets.load("cranfield")
+vaswani = ir_datasets.load("vaswani")
 
 
-class CranfieldIR(IRSystem):
-    """Information Retrieval system for Cranfield corpus"""
+class VaswanidIR(IRSystem):
+    """Information Retrieval system for Vaswanid corpus"""
 
     def docs_iter(self):
-        for doc in cranfield.docs_iter():
+        for doc in vaswani.docs_iter():
             yield Doc(int(doc.doc_id), self.text_processor.process(doc.text))
-    
+
     def get_doc(self, id):
-        doc_store =  cranfield.docs_store()
+        doc_store =  vaswani.docs_store()
         return doc_store.get(id)
 
     def retrieve(self, query):
@@ -24,9 +24,9 @@ class CranfieldIR(IRSystem):
 
     def eval(self, measures):
         run = []
-        for query in cranfield.queries_iter():
+        for query in vaswani.queries_iter():
             for scored_doc in self.retrieve(query):
                 run.append(scored_doc)
 
-        results = ir_measures.calc_aggregate(measures, cranfield.qrels_iter(), run)
+        results = ir_measures.calc_aggregate(measures, vaswani.qrels_iter(), run)
         return results

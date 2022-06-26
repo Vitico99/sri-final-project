@@ -1,7 +1,7 @@
 from typing import Iterable
 from utils import Doc
 from nlp import TextProcessor
-from tf_model import IRModel
+from models.tf_model import IRModel
 from ir_measures import ScoredDoc, Measure
 
 
@@ -19,6 +19,7 @@ class IRSystem:
         Returns:
             Iterable[Doc]: Document corpus
         """
+
         raise NotImplementedError()
 
     def retrieve(self, query) -> list[ScoredDoc]:
@@ -30,6 +31,7 @@ class IRSystem:
         Returns:
             list[ScoredDoc]: Relevant documents
         """
+
         raise NotImplementedError()
 
     def register_query(self) -> int:
@@ -38,6 +40,7 @@ class IRSystem:
         Returns:
             int: Query id
         """
+
         raise NotImplementedError()
 
     def eval(self, measures: list[Measure]):
@@ -50,4 +53,5 @@ class IRSystem:
         Returns:
             dict[Measure, int | float]: Measure results
         """
+        
         raise NotImplementedError()
