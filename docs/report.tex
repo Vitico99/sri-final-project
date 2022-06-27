@@ -1,0 +1,449 @@
+%===================================================================================
+% JORNADA CIENTÍFICA ESTUDIANTIL 2013 - MATCOM, UH
+%===================================================================================
+% Esta plantilla ha sido diseñada para ser usada en los artículos de la
+% Jornada Científica Estudiantil, MatCom 2015.
+%
+% Por favor, siga las instrucciones de esta plantilla y rellene en las secciones
+% correspondientes.
+%
+% NOTA: Necesitará el archivo 'jcematcom.sty' en la misma carpeta donde esté este
+%       archivo para poder utilizar esta plantila.
+%===================================================================================
+
+
+
+%===================================================================================
+% PREÁMBULO
+%-----------------------------------------------------------------------------------
+\documentclass[a4paper,10pt,twocolumn]{article}
+
+%===================================================================================
+% Paquetes
+%-----------------------------------------------------------------------------------
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{jcematcom}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage[pdftex]{hyperref}
+%-----------------------------------------------------------------------------------
+% Configuración
+%-----------------------------------------------------------------------------------
+\hypersetup{colorlinks,%
+	    citecolor=black,%
+	    filecolor=black,%
+	    linkcolor=black,%
+	    urlcolor=blue}
+
+%===================================================================================
+
+
+
+%===================================================================================
+% Presentacion
+%-----------------------------------------------------------------------------------
+% Título
+%-----------------------------------------------------------------------------------
+\title{Implementaci\'on de sistemas de recuperaci\'on de informaci\'on basados en el estad\'istico $tf-idf$}
+
+%-----------------------------------------------------------------------------------
+% Autores
+%-----------------------------------------------------------------------------------
+\author{\\
+\name Victor Manuel Cardentey Fundora
+	\\ \addr Grupo C511 \AND
+\name Karla Olivera Hern\'andez
+  \\ \addr Grupo C511 \AND 
+\name Amanda Gonz\'alez Borrell
+	\\ \addr Grupo C511}
+
+%-----------------------------------------------------------------------------------
+% Tutores
+%-----------------------------------------------------------------------------------
+\tutors{\\
+Prof. Marcel E. S\'anchez Aguilar\\}
+
+
+
+%===================================================================================
+% DOCUMENTO
+%-----------------------------------------------------------------------------------
+\begin{document}
+
+%-----------------------------------------------------------------------------------
+% NO BORRAR ESTA LINEA!
+%-----------------------------------------------------------------------------------
+\twocolumn[
+%-----------------------------------------------------------------------------------
+
+\maketitle
+
+%===================================================================================
+% Resumen y Abstract
+%-----------------------------------------------------------------------------------
+\selectlanguage{spanish} % Para producir el documento en Español
+
+
+%-----------------------------------------------------------------------------------
+% NO BORRAR ESTAS LINEAS!
+%-----------------------------------------------------------------------------------
+\vspace{0.8cm}
+]
+%-----------------------------------------------------------------------------------
+
+
+%===================================================================================
+
+%===================================================================================
+% Introducción
+%-----------------------------------------------------------------------------------
+\section{Introducción}\label{sec:intro}
+%-----------------------------------------------------------------------------------
+En la actualidad el mundo se encuentra en un continuo desarrollo, cada día crece por parte 
+de los investigadores el anhelo por buscar y descubrir conocimiento. Con los avances tecnológicos existentes; 
+en su gran mayoría, este conocimiento se muestra y se guarda en forma de datos por lo que a medida que trascienden 
+los días es mucho mayor la necesidad de contar con estructuras que de manera eficiente logren servir como herramienta
+de uso para la manipulación de tantos datos. En el presente informe se propone la implementación 
+de un Sistema de Recuperación de Información, el cual permitirá recuperar documentos determinados por el relevancia que
+possean los mismos para el usuario. Esta relevancia estará dada por el estad\'istico $tf-idf$ el cual permite modelar la 
+importancia de un t\'ermino dentro de un documento perteneciente a un corpus determinado. Esta medida crece 
+proporcionalmente con el n\'umero de veces que aparece el t\'ermino en el documento y es
+ajustada de acuerdo a la cantidad de documentos del corpus donde aparece el t\'ermino, esto
+permite capturar el hecho de que algunas palabras aparecen con m\'as frecuencia que otras 
+de forma general. Su facilidad de c\'omputo, la efectividad en la modelaci\'on de la importancia de 
+t\'erminos y que pueda ser adaptada tanto a modelos vectoriales como probabil\'isticos 
+hace que sea una de las medidas m\'as utilizadas en la implementaci\'on de sistemas
+de recuperaci\'on de informaci\'on. En este trabajo se implementar\'a una clase base que 
+permitir\'a implementar distintos modelos que utilicen esta medida, para ello brindaremos
+como ejemplo la implementaci\'on del modelo vectorial y del modelo probabil\'istico frecuentista 
+Okapi BM25. 
+%===================================================================================
+
+
+
+%===================================================================================
+% Desarrollo
+%-----------------------------------------------------------------------------------
+\section{Desarrollo}\label{sec:dev}
+%-----------------------------------------------------------------------------------
+
+    \subsection{Consideraciones sobre $tf-idf$ }
+    En esta secci\'on se exponen los motivos que llevaron a seleccionar el modelo
+    $tf-idf$ para la descripci\'on de documentos.
+
+    Las ventajas consideradas fueron:
+    \begin{enumerate}
+        \item Es f\'acil de computar.
+        \item Permite describir los t\'erminos m\'as relevantes de un documento de forma sencilla, por este
+        motivo existen heur\'isticas como \textit{skip lists} que permiten mejorar la eficiencia de los sistemas
+        descartando t\'erminos poco prometedores.
+        \item Permite computar la similaridad de documentos de forma sencilla esto habilita la
+        utilizaci\'on de t\'ecnicas como cl\'ustering para mejorar los resultados del sistema.
+    \end{enumerate}
+
+    Las desventajas consideradas fueron:
+    \begin{enumerate}
+        \item Basado en el modelo \textit{Bag of Words} por lo que no captura informaci\'on de la posici\'on
+        en el texto,  co-ocurrencias en distintos documentos.
+        \item No puede capturar informaci\'on sem\'antica a difernecia de otros modelos como \textit{word embeddings}.
+    \end{enumerate}
+
+    Debido a estos hechos, remarcando principalmente la facilidad de c\'omputo y a que los modelos basados en $tf-idf$ han mostrado buenos resultados en la
+    literatura se decidi\'o utilizar este modelo.
+
+  	\subsection{Arquitectura}\label{sub:results}
+	El sistema desarrollado se compone de 4 m\'odulos:
+    
+    \begin{enumerate}
+        \item Procesamiento de lenguaje natural
+        \item Modelos
+        \item Sistemas de Recuperaci\'on de Informaci\'on
+        \item Interfaz Visual
+    \end{enumerate}
+    
+    El desarrollo de la soluci\'on se realiz\'o en el lenguaje \textbf{python} 
+
+
+%-----------------------------------------------------------------------------------
+	\subsection{Procesamiento de texto}\label{sub:results}
+%-----------------------------------------------------------------------------------
+	El primer paso en el \textit{pipeline} de recuperaci\'on es transformar la representaci\'on 
+	en string del texto en un conjunto de t\'erminos significativos. Para esto se emplearon las bibliotecas
+	\textbf{nltk}, \textbf{re}, \textbf{contractions}, \textbf{unicode} las cuales proveen un
+	conjunto de m\'etodos \'utiles para el procesamiento de lenguaje natural.
+
+	Se defini\'o una interfaz para la funcionalidad de un procesador de texto que en este caso
+	normaliza un string y lo convierte en un array de strings donde cada uno representa un 
+	t\'ermino.
+
+	\begin{figure}[htb]%
+		\begin{lstlisting}[language=python]%
+
+class TextNormalizer:
+  def normalize(self, text):
+    raise NotImplementedError()
+
+		\end{lstlisting}
+	\caption{Interfaz de procesador de texto.\label{fig:code}}
+	\end{figure}
+
+	La implementaci\'on provista en esta soluci\'on provee las siguientes funcionalidades:
+	\begin{enumerate}
+		\item Eliminaci\'on de espacios en blanco
+		\item Conversi\'on de formato unicode a ascii
+		\item Expansi\'on de contracciones gramaticales
+		\item Eliminaci\'on de s\'imbolos de puntuaci\'on
+		\item Tokenizaci\'on
+		\item Eliminaci\'on de \textit{stopwords}
+		\item \textit{Lemmatization}
+	\end{enumerate}
+
+%-----------------------------------------------------------------------------------
+	\subsection{Modelo basado en $tf-id$}\label{sub:lists}
+%-----------------------------------------------------------------------------------
+	La clase base \textbf{FrequencyModel} implementada en la soluci\'on permite el computo de estructuras de datos y medidas relevantes
+	para modelos que utilizan este estad\'istico mediante el m\'etodo \textit{fit}
+
+    Entre las estructuras relevantes y datos sobre el corpus utilizados se encuentran:
+	\begin{enumerate}
+		\item Tabla $tf$: debido a que las tablas $tf$ generalmente son esparcidas la implmentaci\'on se 
+		realiz\'o utilizando un \'indice invertido el cual asocia a cada t\'ermino $t_i$ con 
+		pares $(d_j, f_{ij})$ manteniendo un acceso eficiente mediante el uso de diccionarios y reduciendo el costo
+		de memoria de almacenar dicha tabla.
+		\item Tabla $df$: la cantidad de documentos en las que est\'a presente
+		un t\'ermino es igual a \textbf{len}($tf[t_i]$).
+		\item Tabla $idf$: se utiliza un diccionario para implementar esta tabla, sin embargo el c\'alculo de $idf$ se defini\'o como un
+		m\'etodo abstracto debido a que existen m\'ultiples formas de calcular $idf$.
+		\item Tabla $doc\_len$: asocia cada documento con la cantidad de t\'erminos distintos que aparecen en \'el.
+        \item Longitud media de un documento.
+		\item Cardinalidad del corpus.
+	\end{enumerate}
+
+    Adem\'as provee m\'ultiples definiciones de $tf$ normalizado y de $idf$ para poder utilizarse en clases herederas.
+
+    Luego define de forma gen\'erica el calculo de similitud de un documento dividiendo este en dos funciones: \textit{dscore} u \textit{qscore}.
+    \textit{dscore(term, doc) -> float} retorna el peso del termino en el documento y \textit{qscore(query)} debido a que el peso de los t\'erminos depende
+    de la query este m\'etodo devuelve una funci\'on para calcularlos de forma que \textit{qscore(query) -> func(term) -> float}. Luego el proceso de
+    calcular la similitud se reduce a multiplicar \textit{dscore(term, doc) * func(term)}.
+
+    El proceso de \textit{scoring} y recuperaci\'on de documentos tambi\'en se defini\'o de forma gen\'erica y la clase provee dos
+    estrategias de recuperaci\'on: \textit{Document-At-A-Time} (DAAT) y \textit{Term-At-A-Time} (TAAT)
+
+
+	\begin{figure}[htb]%
+		\begin{lstlisting}[language=python]%
+
+for every query term q in Q do
+  get indexed documents at tf table
+  for each document d indexed
+    score(d) = score(d) + weight(q,d)
+normalize scores
+sort documents
+		\end{lstlisting}
+	\caption{Estrategia TAAT.\label{fig:code}}
+	\end{figure}
+
+    \begin{figure}[htb]%
+		\begin{lstlisting}[language=python]%
+
+for every document d in D do:
+  for every query term q in Q:
+    access inverted index in q,d
+    score(d) = score(d) + weight(q,d)
+  normalize score(d)
+sort documents
+		\end{lstlisting}
+	\caption{Estrategia TAAT.\label{fig:code}}
+	\end{figure}
+
+	Estas formas de evaluaciones recuperan los $k$ documentos con mejor puntuaci\'on. La estrategia
+    TAAT usualmente es preferible con corpus peque\~nos mientras que DAAT obtiene mejores resultados
+    con corpus de mayor tama\~no.
+
+    Con estas definiciones se tiene un modelo gen\'erico en el cual solo restar\'ia definir los m\'etodos
+    para calcular los pesos.
+
+%-----------------------------------------------------------------------------------
+	\subsection{Modelo vectorial}\label{sub:figures}
+%-----------------------------------------------------------------------------------
+	El modelo vectorial implementado se realiz\'o de acuerdo a lo definido en las conferencias impartidas
+	durante la asignatura.
+
+    Por lo que podeos definir \textit{dscore} como:
+    $$
+        w(t,d) = \frac{tf(t,d) \times idf(t)}{|d|}
+    $$
+    Y \textit{qscore} como:
+    $$
+        w(t,q) = 1 + (1 - a) \frac{tf(t,q) \times idf(t) }{|q|}
+    $$
+
+	\subsection{Modelo Okapi}\label{sub:figures}
+
+	El modelo Okapi es un modelo probabil\'istico el cual utiliza la frecuencia de t\'erminos en lugar del modelo
+	de representaci\'on binaria. Se sugiere este modelo debido a que permite la implementaci\'on de esquemas de retroalimentaci\'on de ambos modelos,
+	tanto clustering como enfoques de retroalimentaci\'on para la optimaci\'on de los par\'ametros del modelo. Por lo que se especula que con esquemas de
+	retroalimentaci\'on se alcancen mejores resultados que el modelo vectorial.
+
+	\begin{enumerate}
+		\item El c\'alculo de $idf$ se realiza mediante la f\'ormula \\ $log(\frac{N}{n_i})$ 
+		\item La funci\'on de similitud utilizada es 
+		$ \sum_{t\in q} \log (\frac{N}{n_t}) \frac{(k_1 + 1)tf_{td}}{k_1((1-b) + b(L_d/L_ave)) + tf_{td}} * \frac{(k_3 + 1) tf_{tq}}{ k_3 + tf_{tq} } $
+		donde $k_1$, $k_3$ y $b$ son par\'ametros de estimaci\'on, $L_d$ es la cantidad de t\'erminos del documento y $L_{ave}$ es la media de t\'erminos por documento 
+		en el corpus.
+	\end{enumerate}
+
+    Por tanto podemos definir \textit{dscore} como:
+    $$
+        \log (\frac{N}{n_t}) \frac{(k_1 + 1)tf_{td}}{k_1((1-b) + b(L_d/L_ave)) + tf_{td}}
+    $$
+    Y \textit{qscore} como:
+    $$
+    \frac{(k_3 + 1) tf_{tq}}{ k_3 + tf_{tq} }
+    $$
+
+
+	\subsection{Retroalimentación}
+		Luego de obtener un primer conjunto de documentos relevantes mediante uno de los modelos mencionados se le permite refinar dicho cunjunto marcando de 
+		manera visual aquellos que el usuario considere importantes, a partir de este conjunto y según el modelo sucede lo siguiente:\\
+		En el modelo Vectorial la retroalimientación se realiza mediante el Algoritmo de Rocchio el cual transforma el vector de pesos de la query inicial $q_0$ 
+		en uno nuevo que se acerque al conjunto de documentos que el usuario marcó como relevantes y con esta nueva query se obtiene un nuevo conjunto de documentos 
+		recuperados final.\\
+		La fórmula para obtener la nueva query $q_m$:
+		$$\vec{q_m} = \alpha \vec{q_0} + \frac{\beta}{|D_r|}\sum_{ \vec{d_j} \in D_r} \vec{d_j} - \frac{\gamma}{|D_{nr}|}\sum_{ \vec{d_j} \in D_{nr}} \vec{d_j}   $$
+		$D_r$ y $D_{nr}$ conjunto de documentos relevantes y no relevantes a partir de los documentos recuperados.\\
+		$\alpha$, $\beta$ y $\gamma$ pesos establecidos para cada término de la consulta.\\
+		En el modelo Okapi al igual que en el vectorial se obtiene un primer conjunto de documentos recuperados del cual el usuario divide en dos conjuntos marcando 
+		los relevantes. 
+		Luego se recomputan los valores de los vectores de peso de los documentos teniendo en cuenta la cardinalidad de estos conjuntos y de otros parámtetros, 
+		el score o similitud total de un documento se obtiene en la retroalimentación mediante la siguiente fórmula: \\
+		$$\sum_{t \in q} log [[ \frac{(|VR_t| + \frac{1}{2}) / (|VNR_t| + \frac{1}{2})}{(df_t - |VR_t| + \frac{1}{2}) / (N - df_t - |VR| + |VR_t| + \frac{1}{2})}] $$
+		$$* \frac{(k_1 + 1) tf_{td}}{k_1((1 - b) + b(L_d / L_{ave})) + tf_{td}} * \frac{(k_3 + 1) tf_{tq}}{k_3 + tf_{tq}}]$$
+		donde $VR_t$ es el conjunto de documentos recuperados relevantes que contienen al término $x_t$,
+		$VR$ el conjunto de documentos relevantes conocidos, $VNR_t$ el conjunto de documentos recuperados no relevantes que contienen al término $x_t$,
+		$df_t$ el número de documentos que contienen al término $x_t$ y, por último, $k_1$, $k_3$ y $b$ son parámetros de estimación.
+
+
+
+	\subsection{Corpus y Evaluaci\'on}\label{sub:figures}
+	Para probar los modelos se utilizaron los corpus Cranfield, Vaswani y TrecCovid1 , estos fueron obtenidos a trav\'es de la API de \textbf{ir\_datasets} la cual provee acceso a colecciones de documentos
+	utilizados para la evaluaci\'on de sistemas de recuperaci\'on y otras \'areas de NLP.
+    A continuaci\'on mostramos las distintas medidas objetivas utilizadas:
+    \begin{enumerate}
+        \item P: Precisi\'on
+        \item R: Recall
+        \item Success: Porciento de consultas en las que fue recuperado al menos un documento relevante
+        \item Rprec: R-Precisi\'on
+    \end{enumerate}
+
+    Los resultados fueron calculados para los Top 5 y Top 10 documentos por consulta debido a que los usuarios raramente exploran m\'as documentos 
+    si los documentos previos no fueron de utilidad para ellos.
+
+    \begin{figure}[!htb]%
+    \begin{tabular}{| l | l | l | l | l|}
+        \hline
+        Modelo & P & R & Success & Rprec\\ \hline
+        Vectorial & 0.006 & 0.001 & 0.01 & 0.004\\
+        OkapiBM25 & 0.007 & 0.001 & 0.013 & 0.003\\
+    \end{tabular}
+    \caption{Resultados Cranfield($k=5$)}
+	\end{figure}
+
+    \begin{figure}[h]%
+        \begin{tabular}{| l | l | l | l | l|}
+            \hline
+            Modelo & P & R & Success & Rprec\\ \hline
+            Vectorial & 0.3 & 0.1 & 0.7 & 0.16\\
+            OkapiBM25 & 0.4 & 0.13 & 0.8 & 0.214\\
+        \end{tabular}
+        \caption{Resultados Vaswani($k=5$)}
+    \end{figure}
+
+    \begin{figure}[h]%
+        \begin{tabular}{| l | l | l | l | l|}
+            \hline
+            Modelo & P & R & Success & Rprec\\ \hline
+            Vectorial & 0.4 & 0.03 & 0.966 & 0.088\\
+            OkapiBM25 & 0.61 & 0.05 & 0.966 & 0.11\\
+        \end{tabular}
+        \caption{Resultados TrecCovid($k=5$)}
+    \end{figure}
+
+    \begin{figure}[h]%
+        \begin{tabular}{| l | l | l | l | l|}
+            \hline
+            Modelo & P & R & Success & Rprec\\ \hline
+            Vectorial & 0.005 & 0.003 & 0.02 & 0.003\\
+            OkapiBM25 & 0.006 & 0.005 & 0.05 & 0.004\\
+        \end{tabular}
+        \caption{Resultados Cranfield($k=10$)}
+        \end{figure}
+
+    
+        \begin{figure}[h]%
+            \begin{tabular}{| l | l | l | l | l|}
+                \hline
+                Modelo & P & R & Success & Rprec\\ \hline
+                Vectorial & 0.23 & 0.15 & 0.79 & 0.16\\
+                OkapiBM25 & 0.34 & 0.2 & 0.9 & 0.214\\
+            \end{tabular}
+            \caption{Resultados Vaswani($k=10$)}
+        \end{figure}
+
+        \begin{figure}[!htb]%
+            \begin{tabular}{| l | l | l | l | l|}
+                \hline
+                Modelo & P & R & Success & Rprec\\ \hline
+                Vectorial & 0.4 & 0.06 & 0.93 & 0.08\\
+                OkapiBM25 & 0.56 & 0.06 & 1.0 & 0.11\\
+            \end{tabular}
+            \caption{Resultados TrecCovid($k=10$)}
+        \end{figure}
+        
+
+        Como podemos observar el modelo OkapiBM25 supera al modelo vectorial en todos los escenarios. El dataset 
+        Cranfield mostr\'o notables problemas para ambos modelos con muy bajos resultados en todas las medidas, esto se pude
+        deber a la poca cantidad de queries en el dataset y la poca cantidad de documentos relevantes por query. Los datasets 
+        Vaswani y TrecCovid mostraron lo que se han considerado buenos resultados dado que en los primeros 5 documentos recuperados
+        existen 2 los cuales son relevantes de acuerdo a los valores de precisi\'on obtenidos por lo cual el usuario deber\'ia de poder
+        obtener informaci\'on en su revisi\'on inicial y los valores para los 10 primeros resultados mantiene una buena precisi\'on lo que asegura
+        entre 4 y 5 documentos relevantes en la primera p\'agina de recomendaci\'on de nuestro sistema.
+
+
+%===================================================================================
+% Conclusiones
+%-----------------------------------------------------------------------------------
+\section{Conclusiones}\label{sec:conc}
+
+	En este trabajo se ha realizado la implementaci\'on de un modelo abstracto de recuperaci\'on 
+	de informaci\'on que permita implementar m\'ultiples modelos basados en la utilizaci\'on de medidas 
+	$tf-idf$ para ello se ha provisto una soluci\'on utilizando Streamlit para crear una interfaz de usuario 
+	amigable que facilite la experimentación y la implementaci\'on del modelo vectorial y okapi.
+	Por otro lado, se creó un módulo de evaluaci\'on que permite realizar experimentos sobre estos modelos utilizando
+	los corpus provistos por la API de \textbf{ir\_datasets} lo cual permita determinar cu\'al de estos modelos tiene un mejor comportamiento
+	tanto en la recuperación de información como una vez realizado el proceso de retroalimentación.
+%===================================================================================
+
+
+
+%===================================================================================
+% Bibliografía
+%-----------------------------------------------------------------------------------
+\begin{thebibliography}{99}
+%-----------------------------------------------------------------------------------
+	\bibitem{lee} Dik L. Lee, Huei Chuang, Kent Seamons. Document Ranking and the Vector-Space Model. 1997
+	\bibitem{macavaney} MacAvaney, Sean and Yates, Andrew and Feldman, Sergey and Downey, Doug and Cohan, Arman and Goharian, Nazli.
+	Simplified Data Wrangling with ir\_datasets, 2021, SIGIR.
+	\bibitem{sdfs} Gesare Asnath Tinega, Waweru Mwangi, Richar Rimiru. Text Mining in Digital Libraries using OKAPI BM25 Model. 2018
+%-----------------------------------------------------------------------------------
+\end{thebibliography}
+
+%-----------------------------------------------------------------------------------
+
+\label{end}
+
+\end{document}
+
+%===================================================================================
