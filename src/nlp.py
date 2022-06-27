@@ -6,7 +6,6 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
-
 class TextProcessor:
     def process(self, text, verbose=False):
         raise NotImplementedError()
@@ -46,4 +45,4 @@ class SimpleTextProcessor:
             if w not in self.stop_words:  # discard stopwords
                 result.append(w)
 
-        return words
+        return result

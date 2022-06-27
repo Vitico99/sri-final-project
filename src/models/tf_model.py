@@ -5,9 +5,17 @@ import numpy as np
 from collections import Counter
 from utils import Doc, KMaxHeap, Query
 from ir_measures import ScoredDoc
+import pickle
 
 
 class IRModel:
+    def __init__(self) -> None:
+        self.feedback  = {}
+
+    def save(self, file):
+        with open(file, 'wb') as f:
+            pickle.dump(self, f)
+
     def fit(self, corpus: Iterable[Doc]) -> None:
         """Computes the structures for the tf-idf framework given a corpus of documents
 
@@ -44,6 +52,15 @@ class IRModel:
         """
 
         raise NotImplementedError()
+    
+
+    def export_feedback(self, file):
+        with open(file, 'wb') as f:
+            pickle.dump(self.feedback, f)
+
+    def import_feedback(self, file):
+        with open(file, 'rb') as f:
+            self.feedback = pickle.load(f)
 
 
 class FrequencyModel(IRModel):
@@ -54,6 +71,7 @@ class FrequencyModel(IRModel):
     """
 
     def __init__(self):
+        super().__init__()
 
         # Maps word to an unique int for more efficient computations this unique int
         # will be the representation of a term
@@ -89,6 +107,7 @@ class FrequencyModel(IRModel):
 
         # contains the ids of the documents present in the corpus
         self.docs: list[int] = []
+
 
     #################################################################################################
     #                                                                                               #
@@ -133,6 +152,8 @@ class FrequencyModel(IRModel):
             self.idf[term] = self.idf_function(term)
 
             self.tf[term] = {doc: self.tf_function(term, doc) for doc in self.tf[term]}
+        
+        self.feedback = { term : { 'rel' : {}, 'nrel' : {} } for term in self.tf }
 
     def dscore(self, term: int, doc: int) -> float:
         """Compute the weight of a term in a document [w(t,d)]
@@ -149,6 +170,9 @@ class FrequencyModel(IRModel):
         """
 
         raise NotImplementedError()
+
+    def qscore(self, query):
+        raise NotImplementedError()
     
     def normalize(self, score: float, doc: int):
         raise NotImplementedError()
@@ -159,6 +183,67 @@ class FrequencyModel(IRModel):
     def retrieve_feedback(self, query_id: int, rdocs: list[str], alldocs: list[str]):
         raise NotImplementedError()
 
+    def feedback_on_doc(self, doc, rel='rel'):
+        for term, docs in self.tf.items():
+            if doc in docs:
+                try:
+                    self.feedback[term][rel][doc] += 1
+                except KeyError:
+                    self.feedback[term][rel][doc] = 1
+    
+
+    def feedback_on_term(self, term, sets_diff=True, only_lens=True):
+        relevant_docs = set()
+        for term in self.feedback:
+            for doc in self.feedback[term]['rel']:
+                rel_score = self.feedback[term]['rel'][doc]
+                try:
+                    nrel_score = self.feedback[term]['nrel'][doc]
+                except:
+                    nrel_score = 0
+                rel_score -= nrel_score
+                if rel_score > 0:
+                    relevant_docs.add(doc)
+        
+
+        if only_lens and sets_diff: 
+            return len(relevant_docs), self.corpus_size - len(relevant_docs)
+
+        if not only_lens and sets_diff:
+            return relevant_docs, set([doc for doc in self.docs if doc not in relevant_docs]) 
+
+        non_relevant_docs = set([doc for doc in self.feedback[term]['nrel'] if doc not in relevant_docs])
+        
+        if not only_lens and not sets_diff:
+            return relevant_docs, non_relevant_docs
+
+        if only_lens and not sets_diff:
+            return len(relevant_docs), len(non_relevant_docs)
+
+    def rocchio(self, query, qscore, alpha=0.75, beta=0.75, gamma=0.25):
+        w_tq = {}
+        for term in query:
+            previous_w_tq = qscore(term)
+            VRt, VNRt = self.feedback_on_term(term, False, False)
+            VRt_score = sum(self.dscore(term, doc) for doc in VRt)
+            VNRt_score = sum(self.dscore(term, doc) for doc in VNRt)
+            w = alpha * previous_w_tq
+            if VRt:
+                w +=  VRt_score * beta / len(VRt) 
+            if VNRt:
+                w -= VNRt_score * gamma / len(VNRt)
+            if w > 0:
+                w_tq[term] = w
+            else:
+                w_tq[term] = 0
+        
+        return lambda t: w_tq[t]
+
+
+
+
+
+        
     #################################################################################################
 
     #################################################################################################
@@ -340,7 +425,7 @@ class FrequencyModel(IRModel):
     #                                                                                               #
     #################################################################################################
 
-    def daat_kretrieve(self, wquery: dict[int, float], k: int) -> list[ScoredDoc]:
+    def daat_kretrieve(self, query, k: int) -> list[ScoredDoc]:
         """Retrieves the k most relevant documents in the corpus for a
         given query using a Document-At-A-Time computation strategy.
 
@@ -352,17 +437,19 @@ class FrequencyModel(IRModel):
             list[(float, int)]: k most relevant documents for q in format (score, doc)
         """
         heap = KMaxHeap(k)
+
+        qscore = self.qscore(query)
           
         for doc in self.docs:
             score = 0
-            for term in wquery:
+            for term in query:
                 if doc in self.tf[term].keys():
-                    score += self.dscore(term, doc) * wquery[term]
+                    score += self.dscore(term, doc) * qscore(term)
             heap.push((score, doc))
 
         return heap.to_list(reverse=True)
 
-    def daat_tretrieve(self, wquery: dict[int, float], t: float) -> list[ScoredDoc]:
+    def daat_tretrieve(self, query, t: float) -> list[ScoredDoc]:
         """Retrieves the k most relevant documents in the corpus for a
         given query using a Document-At-A-Time computation strategy.
 
@@ -375,81 +462,83 @@ class FrequencyModel(IRModel):
         """
         result = []
 
+        qscore = self.qscore(query)
+
         for doc in self.docs:
             score = 0
-            for term in wquery:
+            for term in query:
                 if doc in self.tf[term]:
-                    score += self.dscore(term, doc) * wquery[term]
+                    score += self.dscore(term, doc) * qscore(term)
             if score > t:
                 result.append((score, doc))
 
         return result
     
-    def daat_kretrieve_okapi(self, query: Query, k: int, mode = 0, VR = None, Vdoc = None) -> list[ScoredDoc]:
-        """Retrieves the k most relevant documents in the corpus for a
-        given query using a Document-At-A-Time computation strategy.
+    # def daat_kretrieve_okapi(self, query: Query, k: int, mode = 0, VR = None, Vdoc = None) -> list[ScoredDoc]:
+    #     """Retrieves the k most relevant documents in the corpus for a
+    #     given query using a Document-At-A-Time computation strategy.
 
-        Args:
-            query (Query): User query
-            k (int): Number of documents to retrieve
-            mode (int): 0 if is only retreave and 1 if is retreave with feedback
-            VR (list[int]): list of relevant recovered documents
-            Vdoc (list[int]): list of recovered documents
+    #     Args:
+    #         query (Query): User query
+    #         k (int): Number of documents to retrieve
+    #         mode (int): 0 if is only retreave and 1 if is retreave with feedback
+    #         VR (list[int]): list of relevant recovered documents
+    #         Vdoc (list[int]): list of recovered documents
 
-        Returns:
-            list[(float, int)]: k most relevant documents for q in format (score, doc)
-        """
-        heap = KMaxHeap(k)
+    #     Returns:
+    #         list[(float, int)]: k most relevant documents for q in format (score, doc)
+    #     """
+    #     heap = KMaxHeap(k)
 
-        # replacing query words for terms to not repeat this step in the loop
-        query = [self.vocabulary[word] for word in query if word in self.vocabulary]
-        counter = Counter(query)
-        query = list(counter.keys())
+    #     # replacing query words for terms to not repeat this step in the loop
+    #     query = [self.vocabulary[word] for word in query if word in self.vocabulary]
+    #     counter = Counter(query)
+    #     query = list(counter.keys())
 
-        for doc in self.docs:
-            score = 0
-            for term in query:
-                if doc in self.tf[term]:
-                    if mode == 1:
-                        score += self.wt_f(counter, term, doc, VR, Vdoc)
-                    else:
-                        score += self.wt(counter, term, doc)
+    #     for doc in self.docs:
+    #         score = 0
+    #         for term in query:
+    #             if doc in self.tf[term]:
+    #                 if mode == 1:
+    #                     score += self.wt_f(counter, term, doc, VR, Vdoc)
+    #                 else:
+    #                     score += self.wt(counter, term, doc)
 
-            heap.push((score, doc))
+    #         heap.push((score, doc))
 
-        return heap.to_list(reverse=True)
+    #     return heap.to_list(reverse=True)
 
-    def daat_tretrieve_okapi(self, query: Query, t: float, mode = 0, VR = None, Vdoc = None) -> list[ScoredDoc]:
-        """Retrieves the k most relevant documents in the corpus for a
-        given query using a Document-At-A-Time computation strategy.
+    # def daat_tretrieve_okapi(self, query: Query, t: float, mode = 0, VR = None, Vdoc = None) -> list[ScoredDoc]:
+    #     """Retrieves the k most relevant documents in the corpus for a
+    #     given query using a Document-At-A-Time computation strategy.
 
-        Args:
-            query (Query): User query
-            k (int): Number of documents to retrieve
+    #     Args:
+    #         query (Query): User query
+    #         k (int): Number of documents to retrieve
 
-        Returns:
-            list[(float, int)]: k most relevant documents for q in format (score, doc)
-        """
-        result = []
+    #     Returns:
+    #         list[(float, int)]: k most relevant documents for q in format (score, doc)
+    #     """
+    #     result = []
 
-        # replacing query words for terms to not repeat this step in the loop
-        query = [self.vocabulary[word] for word in query if word in self.vocabulary]
-        counter = Counter(query)
-        query = list(counter.keys())
+    #     # replacing query words for terms to not repeat this step in the loop
+    #     query = [self.vocabulary[word] for word in query if word in self.vocabulary]
+    #     counter = Counter(query)
+    #     query = list(counter.keys())
 
-        for doc in self.docs:
-            score = 0
-            for term in query:
-                if doc in self.tf[term]:
-                    if mode == 1:
-                        score += self.wt_f(counter, term, doc, VR, Vdoc)
-                    else:
-                        score += self.wt(counter, term, doc)
+    #     for doc in self.docs:
+    #         score = 0
+    #         for term in query:
+    #             if doc in self.tf[term]:
+    #                 if mode == 1:
+    #                     score += self.wt_f(counter, term, doc, VR, Vdoc)
+    #                 else:
+    #                     score += self.wt(counter, term, doc)
 
-            if score > t:
-                result.append((score, doc))
+    #         if score > t:
+    #             result.append((score, doc))
 
-        return result
+    #     return result
 
     def taat_kretrieve(self, query: Query, k: int) -> list[(float, int)]:
         """Retrieves the k most relevant documents in the corpus for a

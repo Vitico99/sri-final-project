@@ -8,10 +8,11 @@ from ir_measures import ScoredDoc, Measure
 class IRSystem:
     """An abstract pipeline of an Information Retrieval System"""
 
-    def __init__(self, model: IRModel, text_processor: TextProcessor) -> None:
+    def __init__(self, model: IRModel, text_processor: TextProcessor, fit=True) -> None:
         self.model = model
         self.text_processor = text_processor
-        self.model.fit(self.docs_iter())
+        if fit:
+            self.model.fit(self.docs_iter())
 
     def docs_iter(self) -> Iterable[Doc]:
         """Builds an iterable over the document corpus

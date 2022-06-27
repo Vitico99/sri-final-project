@@ -25,7 +25,7 @@ class CranfieldIR(IRSystem):
     def eval(self, measures):
         run = []
         for query in cranfield.queries_iter():
-            for scored_doc in self.retrieve(query):
+             for scored_doc in self.retrieve(query):
                 run.append(scored_doc)
 
         results = ir_measures.calc_aggregate(measures, cranfield.qrels_iter(), run)
